@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rise Up Kings — Funnel Map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#111827;--muted:#6b7280;--faint:#9ca3af;--line:#d1d5db;
+    --biz:#1d4ed8;--biz-soft:#eff4ff;--lay:#0f172a;--lay-soft:#f1f3f6;--white:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;background:var(--white);color:var(--ink);
+    font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;padding:32px 24px 80px;
+  }
+  .wrap{max-width:840px;margin:0 auto;}
+  h1{font-size:22px;font-weight:700;letter-spacing:-0.02em;margin:0 0 4px;}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 24px;}
+
+  .legend{display:flex;flex-wrap:wrap;gap:14px 22px;font-size:12px;color:var(--muted);margin-bottom:30px;align-items:center;}
+  .legend span{display:inline-flex;align-items:center;gap:7px;}
+  .swatch{width:14px;height:14px;border-radius:3px;border:1.5px solid var(--line);}
+  .swatch.biz{background:var(--biz-soft);border-color:var(--biz);}
+  .swatch.lay{background:var(--lay-soft);border-color:var(--lay);}
+  .swatch.flag{background:var(--biz);border-color:var(--biz);}
+  .solidline{width:22px;height:0;border-top:2px solid var(--ink);}
+
+  .board{position:relative;}
+  #wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:visible;}
+  .lanes{display:grid;grid-template-columns:1.25fr 1fr;column-gap:60px;row-gap:60px;align-items:start;}
+  .ln-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);}
+  .entryrow{display:flex;gap:20px;}
+  .entryrow .node{flex:1;}
+  .cell{display:flex;justify-content:center;}
+  .cell .node{width:100%;max-width:340px;}
+
+  .node{
+    position:relative;z-index:2;background:var(--white);
+    border:1.5px solid var(--line);border-top:4px solid var(--line);
+    border-radius:10px;padding:14px 16px;cursor:pointer;
+    transition:box-shadow .15s ease, transform .05s ease;
+  }
+  .node:hover{box-shadow:0 4px 16px rgba(17,24,39,.10);}
+  .node:active{transform:translateY(1px);}
+  .node.biz{border-top-color:var(--biz);background:var(--biz-soft);}
+  .node.lay{border-top-color:var(--lay);background:var(--lay-soft);}
+  .node.flag{background:var(--biz);border-color:var(--biz);border-top-color:#0b2f9e;}
+  .node.flag .n-title,.node.flag .n-sub,.node.flag .n-count{color:#fff;}
+  .node.flag.lay{background:var(--lay);border-color:var(--lay);border-top-color:#000;}
+  .n-title{font-size:14.5px;font-weight:600;letter-spacing:-0.01em;line-height:1.25;}
+  .n-sub{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35;}
+  .n-count{font-size:10.5px;color:var(--faint);margin-top:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+
+  .backdrop{position:fixed;inset:0;background:rgba(17,24,39,.35);opacity:0;visibility:hidden;transition:opacity .2s ease;z-index:50;}
+  .backdrop.open{opacity:1;visibility:visible;}
+  .drawer{
+    position:fixed;top:0;right:0;height:100%;width:440px;max-width:92vw;background:var(--white);
+    box-shadow:-8px 0 30px rgba(17,24,39,.16);transform:translateX(100%);transition:transform .24s cubic-bezier(.4,0,.2,1);
+    z-index:51;display:flex;flex-direction:column;
+  }
+  .drawer.open{transform:translateX(0);}
+  .d-head{padding:24px 26px 18px;border-bottom:1px solid #eceef1;position:relative;}
+  .d-tag{display:inline-block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;padding:3px 9px;border-radius:20px;margin-bottom:10px;}
+  .d-tag.biz{background:var(--biz-soft);color:var(--biz);}
+  .d-tag.lay{background:var(--lay-soft);color:var(--lay);}
+  .d-title{font-size:20px;font-weight:700;letter-spacing:-0.02em;line-height:1.2;}
+  .d-sub{font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.4;}
+  .d-close{position:absolute;top:20px;right:22px;width:30px;height:30px;border:none;background:#f3f4f6;border-radius:7px;cursor:pointer;font-size:16px;color:var(--muted);line-height:1;}
+  .d-close:hover{background:#e5e7eb;color:var(--ink);}
+  .d-body{padding:8px 26px 40px;overflow-y:auto;flex:1;}
+  .d-note{font-size:12px;color:var(--biz);background:var(--biz-soft);border-radius:8px;padding:12px 14px;margin:16px 0 4px;line-height:1.5;}
+
+  .seqcard{border:1px solid #eceef1;border-radius:11px;padding:16px 17px;margin-top:16px;}
+  .sc-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:9px;}
+  .sc-name{font-size:14.5px;font-weight:700;letter-spacing:-0.01em;}
+  .sc-timing{font-size:10px;font-weight:600;color:var(--muted);white-space:nowrap;background:#f3f4f6;padding:3px 9px;border-radius:20px;}
+  .sc-timing.concurrent{background:var(--biz-soft);color:var(--biz);}
+  .sc-load{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;}
+  .chip{font-size:11px;font-weight:600;color:var(--ink);background:#eef1f4;border-radius:6px;padding:3px 9px;}
+  .sc-desc{font-size:12.5px;color:#4b5563;line-height:1.55;}
+
+  @media(max-width:760px){
+    .lanes{grid-template-columns:1fr;gap:16px;}
+    .entryrow{flex-direction:column;}
+    #wires{display:none;}
+    .cell .node{max-width:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Rise Up Kings — Funnel Map</h1>
+  <p class="sub">Two tracks flowing top to bottom into the flagship programs. Click any box for its sequence plan and cadence.</p>
+
+  <div class="legend">
+    <span><span class="swatch biz"></span>Business owner track</span>
+    <span><span class="swatch lay"></span>Lay-men track</span>
+    <span><span class="swatch flag"></span>Flagship program</span>
+    <span><span class="solidline"></span>Flow direction</span>
+  </div>
+
+  <div class="board" id="board">
+    <svg id="wires"></svg>
+    <div class="lanes">
+      <div class="ln-label" style="grid-column:1;grid-row:1;">Business owners</div>
+      <div class="ln-label" style="grid-column:2;grid-row:1;">Lay men</div>
+
+      <div class="entryrow" style="grid-column:1;grid-row:2;">
+        <div class="node biz" id="n-book" data-key="book"></div>
+        <div class="node biz" id="n-lunch" data-key="lunch"></div>
+      </div>
+      <div class="cell" style="grid-column:1;grid-row:3;"><div class="node biz" id="n-ksp" data-key="ksp"></div></div>
+      <div class="cell" style="grid-column:1;grid-row:4;"><div class="node biz flag" id="n-refinery" data-key="refinery"></div></div>
+
+      <div class="cell" style="grid-column:2;grid-row:2;"><div class="node lay" id="n-ignite" data-key="ignite"></div></div>
+      <div class="cell" style="grid-column:2;grid-row:4;"><div class="node lay flag" id="n-awakening" data-key="awakening"></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="backdrop" id="backdrop"></div>
+<aside class="drawer" id="drawer">
+  <div class="d-head">
+    <button class="d-close" id="dclose" aria-label="Close">&times;</button>
+    <span class="d-tag" id="dtag"></span>
+    <div class="d-title" id="dtitle"></div>
+    <div class="d-sub" id="dsub"></div>
+  </div>
+  <div class="d-body" id="dbody"></div>
+</aside>
+
+<script>
+const NODES = {
+  book:{track:"biz",title:"The 2 Day CEO",sub:"Book · funnel entry point",count:"1 sequence",
+    sequences:[
+      {name:"Book Buyer Sequence",timing:"~10 days · soft escalation",emails:"8 emails",sms:"2 SMS",
+       desc:"Warms the buyer and bridges the book into KSP. Runs on Skylar's story, the work-on-not-in mechanism, and a couple of proof points, then lands on the $7 KSP invite. Mostly value with one clear ask near the end. Reusable, no hard-coded dates."}
+    ]},
+
+  lunch:{track:"biz",title:"KSP Business Lunch",sub:"Free in-person · RUK HQ, DFW",count:"2 sequences",
+    sequences:[
+      {name:"Meta Acquisition",timing:"Geo-locked · DFW radius",emails:"10 creatives",sms:"",
+       desc:"Cold traffic to the registration page. Three hook angles, each a different emotional mechanism so results are learnable. Identity-forward for a high-performing audience rather than problem-agitation."},
+      {name:"Show-Rate Sequence",timing:"Register → event day",emails:"~5 emails",sms:"4 SMS",
+       desc:"Confirms the seat and fights the free-event no-show, leaning heavier on SMS as the day approaches. Hits the two real objections for a free event: the time commitment and whether it's a pitch. Peer-level tone, no hard sell."}
+    ]},
+
+  ksp:{track:"biz",title:"KSP",sub:"Kingdom Scaling Principles · $7 · 2-day virtual",count:"3 sequences",
+    sequences:[
+      {name:"Cart Abandonment",timing:"90 min → 48 hrs",emails:"4 emails",sms:"3 SMS",
+       desc:"Recovers incomplete checkouts. At $7 the barrier is the time commitment, not the money, so the angles work the time objection and the authenticity doubt. First email holds until 90 min to avoid colliding with mid-checkout buyers. SMS stand alone from the email angles."},
+      {name:"Pre-Event",timing:"Register → T-1 · broadcast",emails:"13 emails",sms:"4 SMS",
+       desc:"Drives show rate across rolling registrations, so it runs as broadcast rather than automation. Value, credibility and proof up front; countdown pressure builds through the final window where cold feet peaks. Runs all the way through the day before."},
+      {name:"Post-Event",timing:"5–7 days after",emails:"5 emails",sms:"2 SMS",
+       desc:"Rides the post-event momentum straight into the Refinery application. Recap, proof of what graduates went on to build, and the invite to apply."}
+    ]},
+
+  refinery:{track:"biz",title:"RUK Refinery",sub:"4-day intensive · application + phone close · flagship",count:"4 sequences",
+    note:"These tracks overlap, they don't run single file. Push goes hard in week one. Nurture and Route to KSP run alongside it for anyone who hasn't applied. Educate is the long-tail teaching track running underneath everything. KSP graduates re-enter Push warm and pre-sold.",
+    sequences:[
+      {name:"Push — Application",timing:"Days 1–7 · going hard",emails:"12 emails",sms:"8 SMS",
+       desc:"The hard-CTA spine. Application, qualification, real scarcity and objection crushing, hammered across a tight 7-day window. This is the track that pushes the invite, the phone close and the deadline relentlessly."},
+      {name:"Nurture — Belief",timing:"~2–3 weeks · alongside Push",emails:"8 emails",sms:"3 SMS",concurrent:true,
+       desc:"Story and proof driven: Skylar's origin, graduate transformations, why it has to be all four pillars, the faith frame. No hard ask. This is the belief-building layer that makes the Push land instead of bouncing off."},
+      {name:"Route to KSP — Downsell",timing:"Alongside Nurture · non-appliers",emails:"4 emails",sms:"2 SMS",concurrent:true,
+       desc:"Fires concurrently for men who aren't applying, offering the $7 KSP as the lower-friction next step instead of letting them go cold. This is the loop back down into KSP."},
+      {name:"Educate — Training & Course",timing:"Weekly · long tail",emails:"12 emails",sms:"",
+       desc:"VAULT-style teaching. Each email delivers one real lesson and links out to the training videos and course material. Proves competence, keeps opens alive for weeks, and warms long-term non-appliers with zero hard ask."}
+    ]},
+
+  ignite:{track:"lay",title:"Ignite",sub:"1-day in-person · lay men · church-hosted",count:"1 sequence",
+    sequences:[
+      {name:"Ignite Nurture — Coach Matt",timing:"Welcome + countdown to event",emails:"8 emails",sms:"3 SMS",
+       desc:"Coach Matt persona in the lay-men voice, kept distinct from the business-owner avatar. Welcome and value on signup, then an event-anchored countdown that drives the show rate through the final window. SMS stand alone from the email angles."}
+    ]},
+
+  awakening:{track:"lay",title:"Awakening",sub:"3-day experiential · application-gated · flagship",count:"3 sequences",
+    note:"Lay-men parallel to the Refinery, same shape as the Ignite work but without the business-scaling content. Push and Nurture overlap the same way; Show-Rate fires once they're accepted.",
+    sequences:[
+      {name:"Push — Application",timing:"Days 1–7 · going hard",emails:"10 emails",sms:"6 SMS",
+       desc:"Drives the application for the 3-day experiential. Invitation, qualification, scarcity and objection handling on a tight window. The hard-CTA spine for the lay-men side."},
+      {name:"Nurture — Belief",timing:"~2–3 weeks · alongside Push",emails:"8 emails",sms:"3 SMS",concurrent:true,
+       desc:"Faith-first transformation and brotherhood. Lay-men stories, the four pillars for the non-owner, the man his family needs him to be. Value before the ask."},
+      {name:"Show-Rate",timing:"Post-application → event day",emails:"5 emails",sms:"4 SMS",
+       desc:"Confirms and drives attendance once accepted. Logistics, what to bring, and a countdown through the day before with standalone SMS reminders."}
+    ]}
+};
+
+const EDGES = [
+  {from:"book",to:"ksp",label:"registers"},
+  {from:"lunch",to:"ksp",label:"registers"},
+  {from:"ksp",to:"refinery",label:"grad → apply",offset:-16},
+  {from:"refinery",to:"ksp",label:"no apply → $7",offset:16},
+  {from:"ignite",to:"awakening",label:"→ apply"}
+];
+
+for(const [key,d] of Object.entries(NODES)){
+  const el=document.getElementById("n-"+key);
+  if(!el)continue;
+  el.innerHTML=`<div class="n-title">${d.title}</div><div class="n-sub">${d.sub}</div><div class="n-count">${d.count}</div>`;
+  el.addEventListener("click",()=>openDrawer(key));
+}
+
+const drawer=document.getElementById("drawer");
+const backdrop=document.getElementById("backdrop");
+
+function openDrawer(key){
+  const d=NODES[key];
+  const tag=document.getElementById("dtag");
+  tag.className="d-tag "+d.track;
+  tag.textContent=d.track==="biz"?"Business owner track":"Lay-men track";
+  document.getElementById("dtitle").textContent=d.title;
+  document.getElementById("dsub").textContent=d.sub;
+  let html=d.note?`<div class="d-note">${d.note}</div>`:"";
+  html+=d.sequences.map(s=>{
+    const chips=[s.emails,s.sms].filter(Boolean).map(c=>`<span class="chip">${c}</span>`).join("");
+    return `<div class="seqcard">
+      <div class="sc-top"><div class="sc-name">${s.name}</div><span class="sc-timing${s.concurrent?' concurrent':''}">${s.timing}</span></div>
+      <div class="sc-load">${chips}</div>
+      <div class="sc-desc">${s.desc}</div>
+    </div>`;
+  }).join("");
+  document.getElementById("dbody").innerHTML=html;
+  document.getElementById("dbody").scrollTop=0;
+  drawer.classList.add("open");
+  backdrop.classList.add("open");
+}
+function closeDrawer(){drawer.classList.remove("open");backdrop.classList.remove("open");}
+document.getElementById("dclose").addEventListener("click",closeDrawer);
+backdrop.addEventListener("click",closeDrawer);
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeDrawer();});
+
+function drawWires(){
+  const svg=document.getElementById("wires");
+  const board=document.getElementById("board");
+  const b=board.getBoundingClientRect();
+  svg.setAttribute("viewBox",`0 0 ${b.width} ${b.height}`);
+  let out="";
+  for(const e of EDGES){
+    const a=document.getElementById("n-"+e.from), c=document.getElementById("n-"+e.to);
+    if(!a||!c)continue;
+    const ar=a.getBoundingClientRect(), cr=c.getBoundingClientRect();
+    const offX=e.offset||0;
+    const downward=(ar.top+ar.height/2)<(cr.top+cr.height/2);
+    const x1=ar.left-b.left+ar.width/2+offX;
+    const x2=cr.left-b.left+cr.width/2+offX;
+    let y1,y2;
+    if(downward){y1=ar.bottom-b.top;y2=cr.top-b.top-2;}
+    else{y1=ar.top-b.top;y2=cr.bottom-b.top+2;}
+    const my=(y1+y2)/2;
+    out+=`<path d="M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}" fill="none" stroke="#374151" stroke-width="1.6"/>`;
+    if(downward){
+      out+=`<path d="M ${x2} ${y2} L ${x2-4} ${y2-7} L ${x2+4} ${y2-7} Z" fill="#374151"/>`;
+    }else{
+      out+=`<path d="M ${x2} ${y2} L ${x2-4} ${y2+7} L ${x2+4} ${y2+7} Z" fill="#374151"/>`;
+    }
+    const w=e.label.length*5.3+14;
+    out+=`<rect x="${x2-w/2}" y="${my-8}" width="${w}" height="16" rx="8" fill="#ffffff" stroke="#9ca3af" stroke-width="0.8"/>`;
+    out+=`<text x="${x2}" y="${my+2.5}" font-size="9.5" fill="#4b5563" text-anchor="middle" font-family="Inter,sans-serif">${e.label}</text>`;
+  }
+  svg.innerHTML=out;
+}
+window.addEventListener("load",()=>{drawWires();setTimeout(drawWires,150);});
+window.addEventListener("resize",drawWires);
+</script>
+</body>
+</html>
