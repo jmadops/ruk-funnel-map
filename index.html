@@ -148,6 +148,7 @@
       <button class="btn" id="zoom-in">+</button>
     </div>
     <div class="spacer"></div>
+    <span class="saved" id="sync"></span>
     <span class="saved" id="saved"></span>
     <input type="file" id="import-file" class="file-in" accept="application/json">
     <button class="btn" id="import-json">Import</button>
@@ -155,7 +156,7 @@
     <button class="btn primary" id="download-html">Download HTML</button>
     <button class="btn" id="reset">Reset</button>
   </div>
-  <p class="hint">Click any box to edit every field live. Drag the grip (top-right) to move it. Pinch or Ctrl/⌘ + scroll to zoom. Edits auto-save in this browser; <b>Download HTML</b> bakes them into a copy.</p>
+  <p class="hint">Click any box to edit every field live. Drag the grip (top-right) to move it. Pinch or Ctrl/⌘ + scroll to zoom. <b>Edits save live for everyone</b> (watch the status by the toolbar). <b>Download HTML</b> bakes the current map into a standalone copy.</p>
 
   <div class="legend">
     <span><span class="swatch source"></span>Traffic source</span>
@@ -573,6 +574,50 @@ const stage=document.getElementById('stage');
 const scroller=document.getElementById('scroller');
 const svg=document.getElementById('wires');
 const savedEl=document.getElementById('saved');
+const syncEl=document.getElementById('sync');
+
+/* ---- shared backend sync (Vercel Blob via /api/state) ---- */
+let remoteAvailable=false, remoteSaveTimer=null;
+function setSync(t,color){if(!syncEl)return;syncEl.textContent=t;syncEl.style.color=color||'';}
+async function loadRemote(){
+  try{
+    const r=await fetch('/api/state',{cache:'no-store'});
+    if(!r.ok) throw new Error('no api');
+    const data=await r.json();
+    remoteAvailable=true;
+    if(data&&data.state&&Array.isArray(data.state.nodes)){
+      state=data.state;
+      try{localStorage.setItem('ruk-funnel-state-v2',JSON.stringify(state));}catch(e){}
+      renderNodes();
+      setSync('Live ✓','#0d9488');
+    }else{
+      /* nothing stored yet — seed the shared copy from what's on screen */
+      setSync('Live ✓','#0d9488');
+      saveRemoteNow();
+    }
+  }catch(e){
+    remoteAvailable=false;
+    setSync('Local only','#9ca3af');
+  }
+}
+function scheduleRemoteSave(){
+  if(!remoteAvailable)return;
+  setSync('Saving…','#6b7280');
+  clearTimeout(remoteSaveTimer);
+  remoteSaveTimer=setTimeout(saveRemoteNow,900);
+}
+async function saveRemoteNow(){
+  if(!remoteAvailable)return;
+  clearTimeout(remoteSaveTimer);
+  try{
+    const r=await fetch('/api/state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({state})});
+    if(!r.ok) throw new Error('save failed');
+    setSync('Live ✓','#0d9488');
+  }catch(e){
+    setSync('Save failed — retrying','#b91c1c');
+    remoteSaveTimer=setTimeout(saveRemoteNow,4000);
+  }
+}
 
 function nodeById(id){return state.nodes.find(n=>n.id===id);}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -582,6 +627,7 @@ function persist(){
   try{localStorage.setItem('ruk-funnel-state-v2',JSON.stringify(state));
     savedEl.textContent='Saved ✓'; clearTimeout(saveTimer); saveTimer=setTimeout(()=>savedEl.textContent='',1400);
   }catch(e){savedEl.textContent='';}
+  scheduleRemoteSave();
 }
 
 function renderNodes(){
@@ -788,11 +834,12 @@ document.getElementById('export-json').onclick=()=>dl('ruk-funnel.json',JSON.str
 document.getElementById('import-json').onclick=()=>document.getElementById('import-file').click();
 document.getElementById('import-file').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{state=JSON.parse(r.result);renderNodes();persist();}catch(err){alert('That file could not be read as JSON.');}};r.readAsText(f);};
 document.getElementById('download-html').onclick=()=>{document.getElementById('app-state').textContent=JSON.stringify(state);dl('ruk-funnel-map.html','<!DOCTYPE html>\n'+document.documentElement.outerHTML,'text/html');};
-document.getElementById('reset').onclick=()=>{if(confirm('Reset to the original version and clear this browser\u2019s saved edits?')){try{localStorage.removeItem('ruk-funnel-state-v2');}catch(e){}state=JSON.parse(JSON.stringify(initialState));closeDrawer();renderNodes();}};
+document.getElementById('reset').onclick=()=>{if(confirm('Reset to the original version? This replaces the live map for everyone.')){try{localStorage.removeItem('ruk-funnel-state-v2');}catch(e){}state=JSON.parse(JSON.stringify(initialState));closeDrawer();renderNodes();saveRemoteNow();}};
 
 document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeDrawer();closeLinks();}});
 
 renderNodes();
+loadRemote();
 setTimeout(()=>document.getElementById('zoom-fit').click(),60);
 window.addEventListener('resize',drawWires);
 </script>
